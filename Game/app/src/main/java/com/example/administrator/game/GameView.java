@@ -1,16 +1,22 @@
 package com.example.administrator.game;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.SurfaceTexture;
+import android.media.AudioManager;
+import android.media.ToneGenerator;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.view.MotionEvent;
 import android.view.TextureView;
 import android.view.View;
 
 import java.util.ArrayList;
-import java.util.logging.Handler;
+
 
 /**
  * Created by Administrator on 2017-03-11.
@@ -55,45 +61,40 @@ public class GameView extends TextureView implements
     // 핸들러 추가
     private Handler mHandler;
 
+    // 화면변경시 저장한 정보를 모음
+    private static final String KEY_LIFE = "life";
+    private static final String KEY_GAME_START_TIME = "game_start_time";
+    private static final String KEY_BALL = "ball";
+    private static final String KEY_BLOCK = "block";
+
+    private final Bundle mSavedInstanceState;
+
+
 
     //public GameView(Context context) {
-    public GameView(final Context context) {
+    public GameView(final Context context, Bundle savedInstanceState) {
         super(context);
         setSurfaceTextureListener(this);
         setOnTouchListener(this);
-        /*
+        mSavedInstanceState = savedInstanceState;
+
 
         mHandler = new Handler() {
-
-
-            @Override
-            public void publish(LogRecord record) {
-
-            }
-
-            @Override
-            public void flush() {
-
-            }
-
-            @Override
-            public void close() throws SecurityException {
-
-            }
 
             @Override
             public void handleMessage(Message message) {
                 // 실행할 처리
                 Intent intent = new Intent(context, ClearActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
-                intent.putExtra(message.getData());
+                intent.putExtras(message.getData());
+
                 context.startActivity(intent);
 
 
             }
 
         };
-        */
+
 
 
     }
@@ -130,8 +131,10 @@ public class GameView extends TextureView implements
 
 
                 Paint paint = new Paint();
-                paint.setColor(Color.RED);
-                paint.setStyle(Paint.Style.FILL);
+                //paint.setColor(Color.RED);
+                //paint.setStyle(Paint.Style.FILL);
+
+                ToneGenerator toneGenerator = new ToneGenerator(AudioManager.STREAM_MUSIC, ToneGenerator.MAX_VOLUME);
 
 
 
@@ -166,6 +169,7 @@ public class GameView extends TextureView implements
 
                         if(ballLeft < 0 && mBall.getSpeedX() < 0 || ballRight >= getWidth() && mBall.getSpeedX() > 0 ) {
                             mBall.setSpeedX(-mBall.getSpeedX());
+                            toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
                         }
                         /*
 
@@ -176,11 +180,28 @@ public class GameView extends TextureView implements
 
                         if(ballTop < 0 ) {
                             mBall.setSpeedY(-mBall.getSpeedY());
+                            toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
+
                         }
                         if(ballTop > getHeight()) {
                             if(mLife > 0) {
                                 mLife--;
                                 mBall.reset();
+                            }
+                            else {
+                                unlockCanvasAndPost(canvas);
+                                Message message =  Message.obtain();
+
+                                Bundle bundle = new Bundle();
+                                bundle.putBoolean(ClearActivity.EXTRA_IS_CLEAR, false);
+                                bundle.putInt(ClearActivity.EXTRA_BLOCK_COUNT, getBlockCount());
+                                bundle.putLong(ClearActivity.EXTRA_TIME, System.currentTimeMillis() - mGameStartTime);
+
+                                message.setData(bundle);
+                                mHandler.sendMessage(message);
+
+                                return;
+
                             }
                         }
 
@@ -189,27 +210,34 @@ public class GameView extends TextureView implements
                         Block rightBlock = getBlock(ballRight, mBall.getY());
                         Block bottomBlock = getBlock(mBall.getX(), ballBottom);
 
+                        boolean isCollision = false;
+
                         if(leftBlock != null) {
                             mBall.setSpeedX(-mBall.getSpeedX());
                             leftBlock.collision();
+                            isCollision = true;
                         }
                         if(topBlock != null) {
                             mBall.setSpeedY(-mBall.getSpeedY());
                             topBlock.collision();
+                            isCollision = true;
                         }
                         if(rightBlock != null) {
                             mBall.setSpeedX(-mBall.getSpeedX());
                             rightBlock.collision();
+                            isCollision = true;
                         }
                         if(bottomBlock != null) {
                             mBall.setSpeedY(-mBall.getSpeedY());
                             bottomBlock.collision();
+                            isCollision = true;
                         }
 
                         float padTop = mPad.getTop();
                         float ballSpeedY = mBall.getSpeedY();
 
                         if(ballBottom > padTop && ballBottom - ballSpeedY <  padTop && padLeft < ballRight && padRight > ballLeft) {
+                            toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
                             if(ballSpeedY < mBlockHeight / 3) {
                                 ballSpeedY *= -1.05f;
                             }
@@ -233,6 +261,17 @@ public class GameView extends TextureView implements
                             item.draw(canvas, paint);
                         }
                         unlockCanvasAndPost(canvas);
+
+                        if(isCollision && getBlockCount() == 0) {
+                            Message message = Message.obtain();
+                            Bundle bundle = new Bundle();
+                            bundle.putBoolean(ClearActivity.EXTRA_IS_CLEAR, true);
+                            bundle.putInt(ClearActivity.EXTRA_BLOCK_COUNT, 0);
+                            bundle.putLong(ClearActivity.EXTRA_TIME, System.currentTimeMillis() - mGameStartTime);
+
+                            message.setData(bundle);
+                            mHandler.sendMessage(message);
+                        }
                     }
 
                     long sleepTime = 16 - System.currentTimeMillis() + startTime;
@@ -248,7 +287,7 @@ public class GameView extends TextureView implements
 
 
                 }
-
+                toneGenerator.release();
             }
         });
         mIsRunnable = true;
@@ -296,10 +335,20 @@ public class GameView extends TextureView implements
         mItemList.add(mBall);
 
         // 라이프
-        mLife=3;
+        mLife=2;
 
         // 게임시작시간
         mGameStartTime = System.currentTimeMillis();
+
+        if(mSavedInstanceState != null) {
+            mLife = mSavedInstanceState.getInt(KEY_LIFE);
+            mGameStartTime = mSavedInstanceState.getLong(KEY_GAME_START_TIME);
+            mBall.restore(mSavedInstanceState.getBundle(KEY_BALL), width, height);
+
+            for(int i=0; i <100; i++) {
+                mBlockList.get(i).restore(mSavedInstanceState.getBundle(KEY_BLOCK + String.valueOf(i)));
+            }
+        }
     }
 
     private Block getBlock( float x, float y) {
@@ -323,6 +372,17 @@ public class GameView extends TextureView implements
             }
         }
         return count;
+    }
+
+    // 화면 상태값을 저장하는 메소드
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putInt(KEY_LIFE, mLife);
+        outState.putLong(KEY_GAME_START_TIME, mGameStartTime);
+        outState.putBundle(KEY_BALL, mBall.save(getWidth(), getHeight()));
+
+        for(int i=0; i<100; i++) {
+            outState.putBundle(KEY_BLOCK + String.valueOf(i), mBlockList.get(i).save());
+        }
     }
 
 
