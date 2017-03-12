@@ -17,17 +17,20 @@ public class Block implements DrawableItem{
     private final float mRight;
     private int mHard;
 
+    //private final Bitmap block1 = BitmapFactory.decodeResource(getResources(), R.drawable.block1 );
+
+
     private boolean mIsCollision = false;   // 충돌상태 기록 플래그
     private boolean mIsExist = true;
 
     private static final String KEY_HARD = "hard";
 
-    public Block(float top, float left, float bottom, float right) {
+    public Block(float top, float left, float bottom, float right, int hard) {
         mTop =top;
         mLeft =left;
         mBottom = bottom;
         mRight = right;
-        mHard=1;
+        mHard=hard;
     }
 
     public void draw(Canvas canvas, Paint paint) {
@@ -43,9 +46,18 @@ public class Block implements DrawableItem{
                 }
             }
 
-            paint.setColor(Color.BLUE);
+            if(mHard == 2) {
+                paint.setColor(Color.RED);
+
+            }
+            else {
+                paint.setColor(Color.BLUE);
+            }
+
+
             paint.setStyle(Paint.Style.FILL);
             canvas.drawRect(mLeft,mTop, mRight, mBottom, paint);
+            //canvas.drawBitmap(myBitmap01, 0, 0, null);
 
             paint.setColor(Color.BLACK);
             paint.setStyle(Paint.Style.STROKE);

@@ -371,8 +371,14 @@ public class GameView extends TextureView implements
             float blockLeft = i%10*mBlockWidth;
             float blockBottom = blockTop + mBlockHeight;
             float blockRight = blockLeft + mBlockWidth;
+
+            int blockHard = 1;
+            double pp = Math.random() * 5d;
+            if(pp > 4d) {
+                blockHard =2;
+            }
             //mItemList.add(new Block(blockTop, blockLeft, blockBottom, blockRight));
-            mBlockList.add(new Block(blockTop, blockLeft, blockBottom, blockRight));
+            mBlockList.add(new Block(blockTop, blockLeft, blockBottom, blockRight, blockHard));
 
         }
         mItemList.addAll(mBlockList);
@@ -398,7 +404,7 @@ public class GameView extends TextureView implements
             mGameStartTime = mSavedInstanceState.getLong(KEY_GAME_START_TIME);
             mBall.restore(mSavedInstanceState.getBundle(KEY_BALL), width, height);
 
-            for(int i=0; i <100; i++) {
+            for(int i=0; i <BLOCK_COUNT; i++) {
                 mBlockList.get(i).restore(mSavedInstanceState.getBundle(KEY_BLOCK + String.valueOf(i)));
             }
         }
