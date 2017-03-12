@@ -1,11 +1,19 @@
 package com.example.administrator.game;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import java.lang.reflect.Field;
 
 public class ClearActivity extends AppCompatActivity {
 
@@ -16,6 +24,19 @@ public class ClearActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        try {
+            ViewConfiguration config = ViewConfiguration.get(this);
+            Field menuKeyField = ViewConfiguration.class.getDeclaredField("sHasPermanentMenuKey");
+
+            if(menuKeyField != null) {
+                menuKeyField.setAccessible(true);
+                menuKeyField.setBoolean(config, false);
+            }
+
+
+        }catch (Exception ex) {
+
+        }
         setContentView(R.layout.activity_clear);
 
         Intent receiveIntent = getIntent();
@@ -61,12 +82,76 @@ public class ClearActivity extends AppCompatActivity {
             }
         });
 
+        try {
+            ViewConfiguration config = ViewConfiguration.get(this);
+            Field menuKeyField = ViewConfiguration.class.getDeclaredField("sHasPermanentMenuKey");
+
+            if(menuKeyField != null) {
+                menuKeyField.setAccessible(true);
+                menuKeyField.setBoolean(config, false);
+            }
+            else {
+                Toast.makeText(this, "menuKeyField is null", Toast.LENGTH_SHORT).show();
+            }
 
 
+        }catch (Exception ex) {
+            Toast.makeText(this, "error ="+ ex.getMessage(), Toast.LENGTH_SHORT).show();
 
+        }
 
+        // 스코어 계산
+        TextView textScore = (TextView) findViewById(R.id.textScore);
+        final long score = (GameView.BLOCK_COUNT - blockCount) * clearTime;
+        textScore.setText(getString(R.string.score, score));
+
+        //TextView textHighScore = (TextView) findViewById(R.id.testHighScore);
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+        long highScore = sharedPreferences.getLong("high_score", 0);
+
+        if(highScore < score) {
+            highScore = score;
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putLong("high_score", highScore);
+            editor.commit();
+
+        }
+
+        TextView textHighScore = (TextView) findViewById(R.id.textHighScore);
+        textHighScore.setText(getString(R.string.high_score, highScore));
+
+        // share 처리
+        Button buttonShare = (Button) findViewById(R.id.buttonShare);
+        buttonShare.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(Intent.ACTION_SEND);
+                intent.setType("text/plain");
+                intent.putExtra(Intent.EXTRA_TEXT, getString(R.string.score, score));
+                startActivity(intent);
+            }
+        });
 
 
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_clear, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if(id == R.id.action_settings2) {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
 }

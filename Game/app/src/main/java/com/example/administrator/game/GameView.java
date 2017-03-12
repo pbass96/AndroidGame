@@ -2,6 +2,7 @@ package com.example.administrator.game;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -11,6 +12,8 @@ import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.Vibrator;
+import android.preference.PreferenceManager;
 import android.view.MotionEvent;
 import android.view.TextureView;
 import android.view.View;
@@ -125,6 +128,10 @@ public class GameView extends TextureView implements
 
     public void start() {
 
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        final boolean isEnableSound = sharedPreferences.getBoolean("enable_sound", true);
+        final boolean isEnableVibrator = sharedPreferences.getBoolean("enable_vibrate", true);
+
         mThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -136,6 +143,10 @@ public class GameView extends TextureView implements
 
                 ToneGenerator toneGenerator = new ToneGenerator(AudioManager.STREAM_MUSIC, ToneGenerator.MAX_VOLUME);
 
+                int collisionTime = 0;
+                int soundIndex = 0;
+
+                Vibrator vibrator= (Vibrator)getContext().getSystemService(Context.VIBRATOR_SERVICE);
 
 
                 //while(mIsRunnable) {
@@ -169,7 +180,12 @@ public class GameView extends TextureView implements
 
                         if(ballLeft < 0 && mBall.getSpeedX() < 0 || ballRight >= getWidth() && mBall.getSpeedX() > 0 ) {
                             mBall.setSpeedX(-mBall.getSpeedX());
-                            toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
+                            if(isEnableSound) {
+                                toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
+                            }
+                            if(isEnableVibrator) {
+                                vibrator.vibrate(50);
+                            }
                         }
                         /*
 
@@ -180,7 +196,12 @@ public class GameView extends TextureView implements
 
                         if(ballTop < 0 ) {
                             mBall.setSpeedY(-mBall.getSpeedY());
-                            toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
+                            if(isEnableSound) {
+                                toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
+                            }
+                            if(isEnableVibrator) {
+                                vibrator.vibrate(50);
+                            }
 
                         }
                         if(ballTop > getHeight()) {
@@ -189,6 +210,13 @@ public class GameView extends TextureView implements
                                 mBall.reset();
                             }
                             else {
+                                if(isEnableSound) {
+                                    toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
+                                }
+                                if(isEnableVibrator) {
+                                    vibrator.vibrate(50);
+                                }
+
                                 unlockCanvasAndPost(canvas);
                                 Message message =  Message.obtain();
 
@@ -233,11 +261,36 @@ public class GameView extends TextureView implements
                             isCollision = true;
                         }
 
+                        if(isCollision) {
+                            if(collisionTime > 0 ) {
+                                if(soundIndex < 15) {
+                                    soundIndex++;
+                                }
+                            } else {
+                                soundIndex = 1;
+                            }
+                            collisionTime=10;
+                            if(isEnableSound) {
+                                toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
+                            }
+                            if(isEnableVibrator) {
+                                vibrator.vibrate(50);
+                            }
+
+                        } else if(collisionTime > 0) {
+                            collisionTime--;
+                        }
+
                         float padTop = mPad.getTop();
                         float ballSpeedY = mBall.getSpeedY();
 
                         if(ballBottom > padTop && ballBottom - ballSpeedY <  padTop && padLeft < ballRight && padRight > ballLeft) {
-                            toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
+                            if(isEnableSound) {
+                                toneGenerator.startTone(ToneGenerator.TONE_DTMF_0, 10);
+                            }
+                            if(isEnableVibrator) {
+                                vibrator.vibrate(50);
+                            }
                             if(ballSpeedY < mBlockHeight / 3) {
                                 ballSpeedY *= -1.05f;
                             }
@@ -335,7 +388,7 @@ public class GameView extends TextureView implements
         mItemList.add(mBall);
 
         // 라이프
-        mLife=2;
+        mLife=3;
 
         // 게임시작시간
         mGameStartTime = System.currentTimeMillis();
@@ -380,7 +433,7 @@ public class GameView extends TextureView implements
         outState.putLong(KEY_GAME_START_TIME, mGameStartTime);
         outState.putBundle(KEY_BALL, mBall.save(getWidth(), getHeight()));
 
-        for(int i=0; i<100; i++) {
+        for(int i=0; i<BLOCK_COUNT; i++) {
             outState.putBundle(KEY_BLOCK + String.valueOf(i), mBlockList.get(i).save());
         }
     }
